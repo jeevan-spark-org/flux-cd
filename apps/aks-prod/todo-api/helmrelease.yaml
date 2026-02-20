@@ -1,0 +1,48 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: todo-api
+  namespace: flux-system
+spec:
+  releaseName: todo-api
+  targetNamespace: todo-api
+  interval: 15m
+  timeout: 10m
+  chart:
+    spec:
+      chart: ./helm/todo-api
+      sourceRef:
+        kind: GitRepository
+        name: todo-api-source
+        namespace: flux-system
+      interval: 5m
+  install:
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      strategy: rollback
+  driftDetection:
+    mode: enabled
+    ignore:
+      - paths:
+          - /spec/replicas
+        target:
+          kind: Deployment
+  values:
+    image:
+      repository: myacr.azurecr.io/todo-api
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+    env:
+      - name: PORT
+        value: "3000"
+      - name: MONGODB_DB_NAME
+        value: "todo_api"
+  valuesFrom:
+    - kind: Secret
+      name: todo-api-runtime
+      valuesKey: values.yaml
