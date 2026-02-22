@@ -2,7 +2,7 @@
 
 GitOps repository for deploying `todo-api` to Azure Kubernetes Service (AKS) with Flux v2.
 
-This repo follows a production-oriented layout:
+This repo follows an environment-oriented layout:
 
 - `clusters/` -> cluster entrypoints and Flux bootstrap state
 - `infrastructure/` -> shared/platform sources and controllers
@@ -19,11 +19,29 @@ This repo follows a production-oriented layout:
 
 ## Repository structure
 
-- `clusters/aks-prod` is the reconciliation root for the production AKS cluster.
-- `infrastructure/aks-prod/sources` defines the `GitRepository` source for `todo-api`.
-- `apps/aks-prod/todo-api` defines namespace + `HelmRelease`.
+- `clusters/aks-dev` and `clusters/aks-prod` are environment roots.
+- `infrastructure/<env>/sources` defines the `OCIRepository` source for the `todo-api` Helm chart in ACR.
+- `apps/<env>/todo-api` defines namespace + `HelmRelease`.
 
-## 1) Bootstrap Flux to AKS
+## Azure extension integration (default path)
+
+This repository is intended to be consumed by the AKS Flux extension (`microsoft.flux`) from the infra Bicep deployment.
+
+- Git source: `https://github.com/jeevan-spark-org/flux-cd`
+- Branch: `main`
+- Kustomizations:
+  - `infra` -> `./infrastructure/aks-dev` or `./infrastructure/aks-prod`
+  - `apps` -> `./apps/aks-dev` or `./apps/aks-prod` (depends on `infra`)
+
+The AKS extension installs and manages Flux controllers in `flux-system`, while this repo hosts desired-state manifests and app definitions.
+
+Artifact model used by this repo:
+
+- Container image source: `<env-acr>.azurecr.io/todo-api:<tag>`
+- Helm chart source: `oci://<env-acr>.azurecr.io/helm/todo-api:<chart-tag>`
+- `HelmRelease` reads chart via Flux `OCIRepository` and deploys image tag from `values.image.tag`.
+
+## Optional: Bootstrap Flux via CLI
 
 1. Create this repo in GitHub (or your Git provider) and push this content.
 2. Set context to AKS:
@@ -31,17 +49,17 @@ This repo follows a production-oriented layout:
 3. Run bootstrap script:
    - `./scripts/bootstrap-github.sh`
 
-This bootstraps Flux and configures it to reconcile from `clusters/aks-prod`.
+This bootstraps Flux and configures it to reconcile from a selected cluster path (for example, `clusters/aks-prod`).
 
-## 2) Configure app source and image settings
+## 2) Configure chart source and image settings
 
 Update placeholders before first deploy:
 
-- `infrastructure/aks-prod/sources/todo-api-gitrepository.yaml`
-  - Replace `https://github.com/<org>/todo-api.git`
+- `infrastructure/<env>/sources/todo-api-chart-ocirepository.yaml`
+  - Set the ACR hostname and chart `ref.tag`
 - `apps/aks-prod/todo-api/helmrelease.yaml`
-  - Replace image repository `myacr.azurecr.io/todo-api`
-  - Replace image tag with your tested release version
+  - Set environment ACR image repository (`<env-acr>.azurecr.io/todo-api`)
+  - Update image tag with your tested release version
 
 ## 3) Runtime secret values
 

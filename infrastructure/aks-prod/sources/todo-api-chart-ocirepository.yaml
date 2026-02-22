@@ -1,0 +1,11 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: todo-api-chart
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: oci://prduksacr01.azurecr.io/helm/todo-api
+  provider: azure
+  ref:
+    tag: "0.1.0"
